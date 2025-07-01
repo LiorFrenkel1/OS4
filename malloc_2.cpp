@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <cstring>
 
 struct MallocMetadata {
     size_t size; // size of the allocated data (not including MallocMetadata)
@@ -59,15 +60,17 @@ void* scalloc(size_t num, size_t size) {
 void sfree(void* p) {
     if(p == NULL)
         return;
-    MallocMetadata* metadata = (MallocMetadata*)(char*)p - sizeof(MallocMetadata); //p's metadata
+    MallocMetadata* metadata = (MallocMetadata*)((char*)p - sizeof(MallocMetadata)); //p's metadata
     if(metadata->is_free) //already free
         return;
     MallocMetadata* p_next = metadata->next;
     MallocMetadata* p_prev = metadata->prev;
 
     metadata->is_free = true; //now p space is free
-    p_next->prev = p_prev; //disconnect p
-    p_prev->next = p_next;
+//    if (metadata->prev) //disconnect p from linked list
+//        metadata->prev->next = metadata->next;
+//    if (metadata->next)
+//        metadata->next->prev = metadata->prev;
 }
 
 void* srealloc(void* oldp, size_t size) {
