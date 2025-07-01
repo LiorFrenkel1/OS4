@@ -47,8 +47,27 @@ void* smalloc(size_t size) {
     return ptrToAlloc;
 }
 
+void* scalloc(size_t num, size_t size) {
+    size_t sizeToAlloc = num * size;
+    void* data = smalloc(sizeToAlloc); //will find if size or num = 0, as size * num = 0
+    if(data == NULL)
+        return NULL;
+    memset(data, 0, sizeToAlloc);
+    return data;
+}
+
 void sfree(void* p) {
-    //TODO
+    if(p == NULL)
+        return;
+    MallocMetadata* metadata = (MallocMetadata*)(char*)p - sizeof(MallocMetadata); //p's metadata
+    if(metadata->is_free) //already free
+        return;
+    MallocMetadata* p_next = metadata->next;
+    MallocMetadata* p_prev = metadata->prev;
+
+    metadata->is_free = true; //now p space is free
+    p_next->prev = p_prev; //disconnect p
+    p_prev->next = p_next;
 }
 
 void* srealloc(void* oldp, size_t size) {
@@ -71,6 +90,18 @@ void* srealloc(void* oldp, size_t size) {
     return newBlock;
 }
 
+size_t _num_free_blocks() {
+    MallocMetadata* current = firstMeta;
+    size_t countFreeBlocks = 0;
+    while(current != NULL) {
+        if(current->is_free) {
+            countFreeBlocks++;
+        }
+        current = current->next;
+    }
+    return countFreeBlocks;
+}
+
 size_t _num_free_bytes() {
     MallocMetadata* current = firstMeta;
     size_t numOfFreeBytes = 0;
@@ -83,6 +114,16 @@ size_t _num_free_bytes() {
     return numOfFreeBytes;
 }
 
+size_t _num_allocated_blocks() {
+    MallocMetadata* current = firstMeta;
+    size_t countOverAllBlocks = 0;
+    while(current != NULL) {
+        countOverAllBlocks++;
+        current = current->next;
+    }
+    return countOverAllBlocks;
+}
+
 size_t _num_allocated_bytes() {
     MallocMetadata* current = firstMeta;
     size_t numOfBytes = 0;
@@ -91,6 +132,11 @@ size_t _num_allocated_bytes() {
         current = current->next;
     }
     return numOfBytes;
+}
+
+size_t _num_meta_data_bytes() {
+    size_t numOfBlocksOnHeap = _num_allocated_blocks();
+    return numOfBlocksOnHeap * sizeof(MallocMetadata);
 }
 
 size_t _size_meta_data() {
