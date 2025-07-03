@@ -186,51 +186,59 @@ void* srealloc(void* oldp, size_t size) {
     return newBlock;
 }
 
-size_t _num_free_blocks() {
-    MallocMetadata* current = firstMeta;
+size_t _num_free_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
     size_t countFreeBlocks = 0;
-    while(current != NULL) {
-        if(current->is_free) {
-            countFreeBlocks++;
+    for (int i = 0; i <= 10; i++) {
+        MallocMetadata *current = metaByOrderArr[i];
+        while (current != NULL) {
+            if (current->is_free) {
+                countFreeBlocks++;
+            }
+            current = current->next;
         }
-        current = current->next;
     }
     return countFreeBlocks;
 }
 
-size_t _num_free_bytes() {
-    MallocMetadata* current = firstMeta;
+size_t _num_free_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
     size_t numOfFreeBytes = 0;
-    while (current != NULL) {
-        if (current->is_free) {
-            numOfFreeBytes += current->size;
+    for (int i = 0; i <= 10; i++) {
+        MallocMetadata* current = metaByOrderArr[i];
+        while (current != NULL) {
+            if (current->is_free) {
+                numOfFreeBytes += current->size;
+            }
+            current = current->next;
         }
-        current = current->next;
     }
     return numOfFreeBytes;
 }
 
-size_t _num_allocated_blocks() {
-    MallocMetadata* current = firstMeta;
+size_t _num_allocated_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
     size_t countOverAllBlocks = 0;
-    while(current != NULL) {
-        countOverAllBlocks++;
-        current = current->next;
+    for (int i = 0; i <= 10; i++) {
+        MallocMetadata* current = metaByOrderArr[i];
+        while (current != NULL) {
+            countOverAllBlocks++;
+            current = current->next;
+        }
     }
     return countOverAllBlocks;
 }
 
-size_t _num_allocated_bytes() {
-    MallocMetadata* current = firstMeta;
+size_t _num_allocated_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
     size_t numOfBytes = 0;
-    while (current != NULL) {
-        numOfBytes += current->size;
-        current = current->next;
+    for (int i = 0; i <= 10; i++) {
+        MallocMetadata* current = metaByOrderArr[i];
+        while (current != NULL) {
+            numOfBytes += current->size;
+            current = current->next;
+        }
     }
     return numOfBytes;
 }
 
-size_t _num_meta_data_bytes() {
+size_t _num_meta_data_bytes() { //TODO CHECK IF NEED TO CHANGE
     size_t numOfBlocksOnHeap = _num_allocated_blocks();
     return numOfBlocksOnHeap * sizeof(MallocMetadata);
 }
