@@ -8,42 +8,135 @@ struct MallocMetadata {
     MallocMetadata* prev;
 };
 
-MallocMetadata* firstMeta = NULL;
 
-void* smalloc(size_t size) {
-    if (size == 0 || size > 100000000) {
-        return NULL;
+MallocMetadata* metaByOrderArr[11] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+
+bool isFirstAlloc() {
+    for (int i = 0; i <= 10; i++) {
+        if (metaByOrderArr[i] != NULL) {
+            return false;
+        }
     }
-    void* ptrToAlloc = NULL;
-    MallocMetadata* current = firstMeta;
+    return true;
+}
+
+// If the function returns 11 the size is bigger than 128KB
+int getDesiredOrderBySize(size_t size) {
+    int order = 0;
+    int blockSize = 128;
+    while (order < 11 && size > blockSize - sizeof(MallocMetadata)) {
+        blockSize *= 2;
+        order++;
+    }
+    return order;
+}
+
+MallocMetadata* getSmallestAddressBlockByOrder(int order) {
+    MallocMetadata* current = metaByOrderArr[order];
+    MallocMetadata* smallestAddr = NULL;
     while (current != NULL) {
-        if (current->is_free && current->size >= size) {
-            ptrToAlloc = (void*)((char*)current + sizeof(MallocMetadata));
-            current->is_free = false;
+        if (current->is_free && (smallestAddr == NULL ||current < smallestAddr)) {
+            smallestAddr = current;
         }
         current = current->next;
     }
-    if (ptrToAlloc == NULL) {
-        void* metaAndData = sbrk(sizeof(MallocMetadata) + size);
-        if (metaAndData == (void*)(-1)) {
+    return smallestAddr;
+}
+
+int getPowerOfTwo(int power) {
+    int result = 1;
+    while (power != 0) {
+        result *= 2;
+        power--;
+    }
+    return result;
+}
+
+void addMetaToOrderList(MallocMetadata* meta, int order) {
+    meta->prev = NULL;
+    if (metaByOrderArr[order] == NULL) {
+        meta->next = NULL;
+    } else {
+        meta->next = metaByOrderArr[order];
+        metaByOrderArr[order]->prev = meta;
+    }
+    metaByOrderArr[order] = meta;
+}
+
+void removePtrFromOrderList(MallocMetadata* ptr, int order) {
+    if (ptr->next != NULL) {
+        ptr->next->prev = ptr->prev;
+    }
+    if (ptr->prev != NULL) {
+        ptr->prev->next = ptr->next;
+    } else {
+        metaByOrderArr[order] = ptr->next;
+    }
+    ptr->next = NULL;
+    ptr->prev = NULL;
+}
+
+void* smalloc(size_t size) {
+    if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
+        return NULL;
+    }
+    void* ptrToAlloc = NULL;
+    if (isFirstAlloc()) { //Alloc the first 32 128KB blocks if needed
+        intptr_t sizeIntPtr = 128*1024*32;
+        void* pointerToCurrentBlock = sbrk(sizeIntPtr);
+        if (pointerToCurrentBlock == (void*)(-1)) {
             return NULL;
         }
-        MallocMetadata* newMetaData = (MallocMetadata*)metaAndData;
-        ptrToAlloc = (void*)((char*)metaAndData + sizeof(MallocMetadata));
-        newMetaData->next = NULL;
-        newMetaData->is_free = false;
-        newMetaData->size = size;
-        if (firstMeta == NULL) {
-            newMetaData->prev = NULL;
-            firstMeta = newMetaData;
-        } else {
-            current = firstMeta;
-            while (current->next != NULL) {
-                current = current->next;
-            }
-            newMetaData->prev = current;
-            current->next = newMetaData;
+        MallocMetadata* currentMeta;
+        for (int i = 0; i < 32; i++) {
+            currentMeta = (MallocMetadata*)pointerToCurrentBlock;
+            currentMeta->size = 128*1024 - sizeof(MallocMetadata);
+            currentMeta->is_free = true;
+            addMetaToOrderList(currentMeta, 10);
+            pointerToCurrentBlock = (void*)((char*)pointerToCurrentBlock + 128*1024);
         }
+    }
+
+    //Alloc the desired size
+    int order = getDesiredOrderBySize(size);
+    if (order > 10) { //If size bigger than 128KB
+        //TODO large allocs
+    } else {
+        int blockOrder = order;
+        MallocMetadata* blockForAlloc = NULL;
+        while (blockForAlloc == NULL) { //Find the smallest fitting block with the smallest address
+            if (metaByOrderArr[blockOrder] == NULL) {
+                blockOrder++;
+            } else {
+                bool freeBlockExists = false;
+                MallocMetadata* current = metaByOrderArr[blockOrder];
+                while (current != NULL) {
+                    if (current->is_free == true) {
+                        freeBlockExists = true;
+                        break;
+                    }
+                    current = current->next;
+                }
+                if (freeBlockExists) {
+                    blockForAlloc = getSmallestAddressBlockByOrder(order);
+                } else {
+                    blockOrder++;
+                }
+            }
+        }
+
+        removePtrFromOrderList(blockForAlloc, blockOrder);
+        while (blockOrder != order) { //Split the block until it's in the right size
+            blockOrder--;
+            MallocMetadata* buddy = (MallocMetadata*)((char*)blockForAlloc + 128*getPowerOfTwo(blockOrder));
+            buddy->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
+            buddy->is_free = true;
+            addMetaToOrderList(buddy, blockOrder);
+        }
+        blockForAlloc->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
+        blockForAlloc->is_free = false;
+        addMetaToOrderList(blockForAlloc, blockOrder);
+        ptrToAlloc = (void*)((char*)blockForAlloc + sizeof(MallocMetadata));
     }
     return ptrToAlloc;
 }
