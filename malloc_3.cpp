@@ -132,6 +132,19 @@ void* allocateBigBlock(size_t size) {
     return ptrToAlloc;
 }
 
+void removeFromBigBlockList(MallocMetadata* ptr) {
+    if (ptr->next != NULL) {
+        ptr->next->prev = ptr->prev;
+    }
+    if (ptr->prev != NULL) {
+        ptr->prev->next = ptr->next;
+    } else {
+        bigBlocksListFirst = ptr->next;
+    }
+    ptr->next = NULL;
+    ptr->prev = NULL;
+}
+
 void* smalloc(size_t size) {
     if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
         return NULL;
@@ -266,6 +279,7 @@ void sfree(void* p) {
 
     if (order >= 10) {
         size_t total_size = metadata->size + sizeof(MallocMetadata);
+        removeFromBigBlockList(metadata);
         munmap((void*)metadata, total_size);
         return;
     }
@@ -325,6 +339,7 @@ size_t _num_free_bytes() {
 
 size_t _num_allocated_blocks() {
     size_t countOverAllBlocks = 0;
+    //std::cout << "[DEBUG] : not null" << std::endl;
     for (int i = 0; i <= 10; i++) {
         MallocMetadata* current = metaByOrderArr[i];
         while (current != NULL) {
@@ -332,7 +347,9 @@ size_t _num_allocated_blocks() {
             current = current->next;
         }
     }
+
     MallocMetadata* current = bigBlocksListFirst;
+    //std::cout << "[DEBUG] : current is " << (current == nullptr) << std::endl;
     while (current != NULL) {
         countOverAllBlocks++;
         current = current->next;
