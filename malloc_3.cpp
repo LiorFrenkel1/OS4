@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <cstring>
+#include <sys/mman.h>
 
 #define MAX_ORDER 10
 
@@ -12,6 +13,8 @@ struct MallocMetadata {
 
 
 MallocMetadata* metaByOrderArr[11] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+
+MallocMetadata* bigBlocksListFirst = NULL;
 
 void* alignHeapTo4MB() {
     void* curr_brk = sbrk(0);
@@ -92,6 +95,36 @@ void removePtrFromOrderList(MallocMetadata* ptr, int order) {
     ptr->prev = NULL;
 }
 
+void* allocateBigBlock(size_t size) {
+    void* block = mmap(NULL, size + sizeof(MallocMetadata),
+                       PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS,
+                       -1, 0);
+    if(block == MAP_FAILED)
+        return NULL;
+
+    MallocMetadata* newMetaData = (MallocMetadata*)block;
+    void* ptrToAlloc = NULL;
+    ptrToAlloc = (void*)((char*)block + sizeof(MallocMetadata));
+    MallocMetadata* current = bigBlocksListFirst;
+
+    newMetaData->next = NULL;
+    newMetaData->is_free = false;
+    newMetaData->size = size;
+    if (bigBlocksListFirst == NULL) {
+        newMetaData->prev = NULL;
+        bigBlocksListFirst = newMetaData;
+    } else {
+        current = bigBlocksListFirst;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        newMetaData->prev = current;
+        current->next = newMetaData;
+    }
+    return ptrToAlloc;
+}
+
 void* smalloc(size_t size) {
     if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
         return NULL;
@@ -120,7 +153,9 @@ void* smalloc(size_t size) {
     //Alloc the desired size
     int order = getDesiredOrderBySize(size);
     if (order > 10) { //If size bigger than 128KB
-        //TODO large allocs
+        ptrToAlloc = allocateBigBlock(size);
+        if(ptrToAlloc == NULL)
+            return NULL;
     } else {
         int blockOrder = order;
         MallocMetadata* blockForAlloc = NULL;
@@ -212,9 +247,17 @@ void sfree(void* p) {
     if(metadata->is_free) //already free
         return;
 
-    metadata->is_free = true; //now p space is free
 
     int order = getDesiredOrderBySize(metadata->size);
+
+    if (order >= 10) {
+        size_t total_size = metadata->size + sizeof(MallocMetadata);
+        munmap((void*)metadata, total_size);
+        return;
+    }
+
+    metadata->is_free = true; //now p space is free
+
     addMetaToOrderList(metadata, order);
 
     mergeBuddies(metadata);
@@ -240,7 +283,7 @@ void* srealloc(void* oldp, size_t size) {
     return newBlock;
 }
 
-size_t _num_free_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
+size_t _num_free_blocks() {
     size_t countFreeBlocks = 0;
     for (int i = 0; i <= 10; i++) {
         MallocMetadata *current = metaByOrderArr[i];
@@ -254,7 +297,7 @@ size_t _num_free_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
     return countFreeBlocks;
 }
 
-size_t _num_free_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
+size_t _num_free_bytes() {
     size_t numOfFreeBytes = 0;
     for (int i = 0; i <= 10; i++) {
         MallocMetadata* current = metaByOrderArr[i];
@@ -268,7 +311,7 @@ size_t _num_free_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
     return numOfFreeBytes;
 }
 
-size_t _num_allocated_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
+size_t _num_allocated_blocks() {
     size_t countOverAllBlocks = 0;
     for (int i = 0; i <= 10; i++) {
         MallocMetadata* current = metaByOrderArr[i];
@@ -277,10 +320,15 @@ size_t _num_allocated_blocks() { //TODO ADD LOGIC FOR LARGE ALLOC
             current = current->next;
         }
     }
+    MallocMetadata* current = bigBlocksListFirst;
+    while (current != NULL) {
+        countOverAllBlocks++;
+        current = current->next;
+    }
     return countOverAllBlocks;
 }
 
-size_t _num_allocated_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
+size_t _num_allocated_bytes() {
     size_t numOfBytes = 0;
     for (int i = 0; i <= 10; i++) {
         MallocMetadata* current = metaByOrderArr[i];
@@ -288,6 +336,11 @@ size_t _num_allocated_bytes() { //TODO ADD LOGIC FOR LARGE ALLOC
             numOfBytes += current->size;
             current = current->next;
         }
+    }
+    MallocMetadata* current = bigBlocksListFirst;
+    while (current != NULL) {
+        numOfBytes += current->size;
+        current = current->next;
     }
     return numOfBytes;
 }
