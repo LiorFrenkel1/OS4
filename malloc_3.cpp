@@ -20,7 +20,7 @@ MallocMetadata* bigBlocksListFirst = NULL;
 
 void* alignHeapTo4MB() {
     void* curr_brk = sbrk(0);
-    size_t misalignment = (size_t)curr_brk % 128*1024*32;
+    size_t misalignment = (size_t)curr_brk % (128 * 1024 * 32);
     if (misalignment != 0) {
         size_t adjustment = 128*1024*32 - misalignment;
         void* result = sbrk(adjustment);
@@ -240,7 +240,7 @@ MallocMetadata* mergeBuddies(MallocMetadata* metadata) {
             break;
 
         uintptr_t current_addr = (uintptr_t)metadata;
-        uintptr_t buddy_addr = current_addr ^ curr_size;
+        uintptr_t buddy_addr = (uintptr_t)metadata ^ (curr_size + sizeof(MallocMetadata));
         MallocMetadata* buddy_metadata = (MallocMetadata*)buddy_addr;
 
         if(!buddy_metadata->is_free || buddy_metadata->size != curr_size)
@@ -302,7 +302,7 @@ void* srealloc(void* oldp, size_t size) {
     }
     void* newBlock = smalloc(size);
     if (newBlock == NULL) {
-        NULL;
+        return NULL;
     }
     memmove(newBlock, oldp, oldMeta->size);
     sfree((void*)oldMeta);
