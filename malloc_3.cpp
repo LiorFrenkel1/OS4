@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <cstring>
 
+#define MAX_ORDER 10
+
 struct MallocMetadata {
     size_t size; // size of the allocated data (not including MallocMetadata)
     bool is_free;
@@ -10,6 +12,20 @@ struct MallocMetadata {
 
 
 MallocMetadata* metaByOrderArr[11] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+
+void* alignHeapTo4MB() {
+    void* curr_brk = sbrk(0);
+    size_t misalignment = (size_t)curr_brk % 128*1024*32;
+    if (misalignment != 0) {
+        size_t adjustment = 128*1024*32 - misalignment;
+        void* result = sbrk(adjustment);
+        if (result == (void*)(-1)) {
+            return NULL;
+        }
+    }
+    return sbrk(0); // now aligned
+}
+
 
 bool isFirstAlloc() {
     for (int i = 0; i <= 10; i++) {
@@ -82,6 +98,10 @@ void* smalloc(size_t size) {
     }
     void* ptrToAlloc = NULL;
     if (isFirstAlloc()) { //Alloc the first 32 128KB blocks if needed
+        if (alignHeapTo4MB() == NULL) {
+            return NULL; // didn't manage to alignHeap
+        }
+
         intptr_t sizeIntPtr = 128*1024*32;
         void* pointerToCurrentBlock = sbrk(sizeIntPtr);
         if (pointerToCurrentBlock == (void*)(-1)) {
@@ -150,20 +170,54 @@ void* scalloc(size_t num, size_t size) {
     return data;
 }
 
+void mergeBuddies(MallocMetadata* metadata) {
+    while(true) {
+        size_t curr_size = metadata->size;
+        int order = getDesiredOrderBySize(curr_size);
+
+        if(order >= MAX_ORDER)
+            break;
+
+        uintptr_t current_addr = (uintptr_t)metadata;
+        uintptr_t buddy_addr = current_addr ^ curr_size;
+        MallocMetadata* buddy_metadata = (MallocMetadata*)buddy_addr;
+
+        if(!buddy_metadata->is_free || buddy_metadata->size != curr_size)
+            break;
+
+        removePtrFromOrderList(buddy_metadata, order);
+        removePtrFromOrderList(metadata, order);
+
+        MallocMetadata* mergedBuddiesMetadata;
+        if(buddy_addr < current_addr)
+            mergedBuddiesMetadata = buddy_metadata;
+        else
+            mergedBuddiesMetadata = metadata;
+
+        mergedBuddiesMetadata->size = curr_size * 2;
+        mergedBuddiesMetadata->is_free = true;
+
+        int newOrder = getDesiredOrderBySize(mergedBuddiesMetadata->size);
+        addMetaToOrderList(mergedBuddiesMetadata, newOrder);
+
+        metadata = mergedBuddiesMetadata;
+    }
+}
+
+
 void sfree(void* p) {
     if(p == NULL)
         return;
     MallocMetadata* metadata = (MallocMetadata*)((char*)p - sizeof(MallocMetadata)); //p's metadata
     if(metadata->is_free) //already free
         return;
-    MallocMetadata* p_next = metadata->next;
-    MallocMetadata* p_prev = metadata->prev;
 
     metadata->is_free = true; //now p space is free
-//    if (metadata->prev) //disconnect p from linked list
-//        metadata->prev->next = metadata->next;
-//    if (metadata->next)
-//        metadata->next->prev = metadata->prev;
+
+    int order = getDesiredOrderBySize(metadata->size);
+    addMetaToOrderList(metadata, order);
+
+    mergeBuddies(metadata);
 }
 
 void* srealloc(void* oldp, size_t size) {
