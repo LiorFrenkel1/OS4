@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <sys/mman.h>
+#include <cstdint>
 
 #define MAX_ORDER 10
 
