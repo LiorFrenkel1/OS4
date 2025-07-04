@@ -174,7 +174,7 @@ void* smalloc(size_t size) {
                     current = current->next;
                 }
                 if (freeBlockExists) {
-                    blockForAlloc = getSmallestAddressBlockByOrder(order);
+                    blockForAlloc = getSmallestAddressBlockByOrder(blockOrder);
                 } else {
                     blockOrder++;
                 }
