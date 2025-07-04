@@ -2,6 +2,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <cstdint>
+#include <iostream>
 
 #define MAX_ORDER 10
 
@@ -55,8 +56,10 @@ MallocMetadata* getSmallestAddressBlockByOrder(int order) {
     MallocMetadata* current = metaByOrderArr[order];
     MallocMetadata* smallestAddr = NULL;
     while (current != NULL) {
-        if (current->is_free && (smallestAddr == NULL ||current < smallestAddr)) {
-            smallestAddr = current;
+        if (current->is_free){
+            if(smallestAddr == NULL || current < smallestAddr) {
+                smallestAddr = current;
+            }
         }
         current = current->next;
     }
@@ -72,17 +75,6 @@ int getPowerOfTwo(int power) {
     return result;
 }
 
-void addMetaToOrderList(MallocMetadata* meta, int order) {
-    meta->prev = NULL;
-    if (metaByOrderArr[order] == NULL) {
-        meta->next = NULL;
-    } else {
-        meta->next = metaByOrderArr[order];
-        metaByOrderArr[order]->prev = meta;
-    }
-    metaByOrderArr[order] = meta;
-}
-
 void removePtrFromOrderList(MallocMetadata* ptr, int order) {
     if (ptr->next != NULL) {
         ptr->next->prev = ptr->prev;
@@ -94,6 +86,20 @@ void removePtrFromOrderList(MallocMetadata* ptr, int order) {
     }
     ptr->next = NULL;
     ptr->prev = NULL;
+}
+
+void addMetaToOrderList(MallocMetadata* meta, int order) {
+    if (meta->prev != NULL || meta->next != NULL || metaByOrderArr[order] == meta) {
+        removePtrFromOrderList(meta, order);
+    }
+    meta->prev = NULL;
+    if (metaByOrderArr[order] == NULL) {
+        meta->next = NULL;
+    } else {
+        meta->next = metaByOrderArr[order];
+        metaByOrderArr[order]->prev = meta;
+    }
+    metaByOrderArr[order] = meta;
 }
 
 void* allocateBigBlock(size_t size) {
@@ -161,12 +167,14 @@ void* smalloc(size_t size) {
         int blockOrder = order;
         MallocMetadata* blockForAlloc = NULL;
         while (blockForAlloc == NULL) { //Find the smallest fitting block with the smallest address
+            //std::cout << "searching smallest fitting block" << std::endl;
             if (metaByOrderArr[blockOrder] == NULL) {
                 blockOrder++;
             } else {
                 bool freeBlockExists = false;
                 MallocMetadata* current = metaByOrderArr[blockOrder];
                 while (current != NULL) {
+                    //std::cout << "searching free block" << std::endl;
                     if (current->is_free == true) {
                         freeBlockExists = true;
                         break;
@@ -175,14 +183,17 @@ void* smalloc(size_t size) {
                 }
                 if (freeBlockExists) {
                     blockForAlloc = getSmallestAddressBlockByOrder(blockOrder);
+                    //std::cout << "found free block" << std::endl;
                 } else {
                     blockOrder++;
                 }
             }
         }
 
+        //std::cout << "removed block from free list" << std::endl;
         removePtrFromOrderList(blockForAlloc, blockOrder);
         while (blockOrder != order) { //Split the block until it's in the right size
+            //std::cout << "splitting blocks" << std::endl;
             blockOrder--;
             MallocMetadata* buddy = (MallocMetadata*)((char*)blockForAlloc + 128*getPowerOfTwo(blockOrder));
             buddy->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
@@ -194,6 +205,7 @@ void* smalloc(size_t size) {
         addMetaToOrderList(blockForAlloc, blockOrder);
         ptrToAlloc = (void*)((char*)blockForAlloc + sizeof(MallocMetadata));
     }
+    //std::cout << "returning" << std::endl;
     return ptrToAlloc;
 }
 
@@ -206,7 +218,7 @@ void* scalloc(size_t num, size_t size) {
     return data;
 }
 
-void mergeBuddies(MallocMetadata* metadata) {
+MallocMetadata* mergeBuddies(MallocMetadata* metadata) {
     while(true) {
         size_t curr_size = metadata->size;
         int order = getDesiredOrderBySize(curr_size);
@@ -233,21 +245,22 @@ void mergeBuddies(MallocMetadata* metadata) {
         mergedBuddiesMetadata->size = curr_size * 2;
         mergedBuddiesMetadata->is_free = true;
 
-        int newOrder = getDesiredOrderBySize(mergedBuddiesMetadata->size);
-        addMetaToOrderList(mergedBuddiesMetadata, newOrder);
 
         metadata = mergedBuddiesMetadata;
     }
+        int newOrder = getDesiredOrderBySize(metadata->size);
+        addMetaToOrderList(metadata, newOrder);
+    return metadata;
 }
 
 
 void sfree(void* p) {
     if(p == NULL)
         return;
+
     MallocMetadata* metadata = (MallocMetadata*)((char*)p - sizeof(MallocMetadata)); //p's metadata
     if(metadata->is_free) //already free
         return;
-
 
     int order = getDesiredOrderBySize(metadata->size);
 
@@ -258,8 +271,6 @@ void sfree(void* p) {
     }
 
     metadata->is_free = true; //now p space is free
-
-    addMetaToOrderList(metadata, order);
 
     mergeBuddies(metadata);
 }
