@@ -20,6 +20,7 @@ size_t _size_meta_data();
 // Test helper functions
 void print_stats(const char* test_name) {
     std::cout << "=== " << test_name << " ===" << std::endl;
+    std::cout<< "printing stats now " << std::endl;
     std::cout << "Free blocks: " << _num_free_blocks() << std::endl;
     std::cout << "Free bytes: " << _num_free_bytes() << std::endl;
     std::cout << "Allocated blocks: " << _num_allocated_blocks() << std::endl;
@@ -47,6 +48,7 @@ void test_initial_state() {
     size_t total_blocks = _num_allocated_blocks();
     size_t free_blocks = _num_free_blocks();
     size_t allocated_blocks = total_blocks - free_blocks;
+    std::cout << "allocated blocks: " << allocated_blocks << std::endl;
 
     assert(allocated_blocks >= 1);
     assert(free_blocks >= 31);
@@ -312,6 +314,7 @@ void test_fragmentation() {
         ptrs[i] = smalloc(100);
         assert(ptrs[i] != nullptr);
     }
+
 
     // Free every other allocation
     for (int i = 0; i < 10; i += 2) {

@@ -221,7 +221,7 @@ void removeFromBigBlockList(MallocMetadata* ptr) {
 }
 
 void* smalloc(size_t size) {
-    std::cout << "smalloc called with size: " << size << std::endl;
+    //std::cout << "smalloc called with size: " << size << std::endl;
     if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
         return NULL;
     }
@@ -247,26 +247,26 @@ void* smalloc(size_t size) {
     }
 
     //Alloc the desired size
-    std::cout << "[DEBUG] : Not First Alloc" << std::endl;
+    //std::cout << "[DEBUG] : Not First Alloc" << std::endl;
     int order = getDesiredOrderBySize(size);
     if (order > 10) { //If size bigger than 128KB
-        std::cout << "[DEBUG] : Big Block" << std::endl;
+        //std::cout << "[DEBUG] : Big Block" << std::endl;
         ptrToAlloc = allocateBigBlock(size);
         if(ptrToAlloc == NULL)
             return NULL;
     } else {
-        std::cout << "[DEBUG] : Not Big Block" << std::endl;
+        //std::cout << "[DEBUG] : Not Big Block" << std::endl;
         int blockOrder = order;
         MallocMetadata* blockForAlloc = NULL;
         while (blockForAlloc == NULL) { //Find the smallest fitting block with the smallest address
-            std::cout << "searching smallest fitting block" << std::endl;
+            //std::cout << "searching smallest fitting block" << std::endl;
             if (metaByOrderArr[blockOrder] == NULL) {
                 blockOrder++;
             } else {
                 bool freeBlockExists = false;
                 MallocMetadata* current = metaByOrderArr[blockOrder];
                 while (current != NULL) {
-                    std::cout << "searching free block" << std::endl;
+                    //std::cout << "searching free block" << std::endl;
                     if (current->is_free == true) {
                         freeBlockExists = true;
                         break;
@@ -275,7 +275,7 @@ void* smalloc(size_t size) {
                 }
                 if (freeBlockExists) {
                     blockForAlloc = getSmallestAddressBlockByOrder(blockOrder);
-                    std::cout << "found free block" << std::endl;
+                    //std::cout << "found free block" << std::endl;
                 } else {
                     blockOrder++;
                 }
@@ -283,18 +283,18 @@ void* smalloc(size_t size) {
         }
 
         removePtrFromOrderList(blockForAlloc, blockOrder);
-        std::cout << "removed block from free list" << std::endl;
+        //std::cout << "removed block from free list" << std::endl;
         while (blockOrder != order) { //Split the block until it's in the right size
-            std::cout << "splitting blocks " << blockOrder << std::endl;
+            //std::cout << "splitting blocks " << blockOrder << std::endl;
             blockOrder--;
             MallocMetadata* buddy = (MallocMetadata*)((char*)blockForAlloc + 128*getPowerOfTwo(blockOrder));
             buddy->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
             buddy->is_free = true;
-            std::cout << "adding to order list " << blockOrder << std::endl;
+            //std::cout << "adding to order list " << blockOrder << std::endl;
             addMetaToOrderList(buddy, blockOrder);
-            std::cout << "added to order list " << blockOrder << std::endl;
+            //std::cout << "added to order list " << blockOrder << std::endl;
         }
-        std::cout << "[DEBUG] : splitted blocks" << std::endl;
+        //std::cout << "[DEBUG] : splitted blocks" << std::endl;
         blockForAlloc->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
         blockForAlloc->is_free = false;
         //now add to allocated List
@@ -434,11 +434,10 @@ size_t _num_free_bytes() {
 size_t _num_allocated_blocks() {
     size_t countOverAllBlocks = 0;
     //std::cout << "[DEBUG] : not null" << std::endl;
-    print_meta_by_order_array();
-    //
+    //print_meta_by_order_array();
     // print_meta_by_order_allocated_array();
     for (int i = 0; i <= 10; i++) {
-        std::cout << i << std::endl;
+        //std::cout << i << std::endl;
         MallocMetadata* current = metaByOrderArr[i];
         while (current != NULL) {
             countOverAllBlocks++;
@@ -446,14 +445,14 @@ size_t _num_allocated_blocks() {
         }
     }
     for (int i = 0; i <= 9; i++) {
-        std::cout << i << std::endl;
+        //std::cout << i << std::endl;
         MallocMetadata* current = metaByOrderAllocatedArr[i];
         while (current != NULL) {
             countOverAllBlocks++;
             current = current->next;
         }
     }
-    std::cout << "got here" << std::endl;
+    //std::cout << "got here" << std::endl;
 
     MallocMetadata* current = bigBlocksListFirst;
     //std::cout << "[DEBUG] : current is " << (current == nullptr) << std::endl;
@@ -474,7 +473,7 @@ size_t _num_allocated_bytes() {
         }
     }
     for (int i = 0; i <= 9; i++) {
-        std::cout << i << std::endl;
+        //std::cout << i << std::endl;
         MallocMetadata* current = metaByOrderAllocatedArr[i];
         while (current != NULL) {
             numOfBytes += current->size;
