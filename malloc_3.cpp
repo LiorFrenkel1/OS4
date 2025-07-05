@@ -89,9 +89,6 @@ void removePtrFromOrderList(MallocMetadata* ptr, int order) {
 }
 
 void addMetaToOrderList(MallocMetadata* meta, int order) {
-    if (meta->prev != NULL || meta->next != NULL || metaByOrderArr[order] == meta) {
-        removePtrFromOrderList(meta, order);
-    }
     meta->prev = NULL;
     if (metaByOrderArr[order] == NULL) {
         meta->next = NULL;
@@ -255,7 +252,7 @@ MallocMetadata* mergeBuddies(MallocMetadata* metadata) {
         else
             mergedBuddiesMetadata = metadata;
 
-        mergedBuddiesMetadata->size = curr_size * 2;
+        mergedBuddiesMetadata->size = (curr_size + sizeof(MallocMetadata)) * 2 - sizeof(MallocMetadata);
         mergedBuddiesMetadata->is_free = true;
 
 
