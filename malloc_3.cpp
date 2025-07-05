@@ -16,7 +16,7 @@ struct MallocMetadata {
 
 MallocMetadata* metaByOrderArr[11] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
-MallocMetadata* metaByOrderAllocatedArr[11] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+MallocMetadata* metaByOrderAllocatedArr[10] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 MallocMetadata* bigBlocksListFirst = NULL;
 
@@ -32,6 +32,26 @@ void print_meta_by_order_array() {
     for (int i = 0; i <= 10; ++i) {
         std::cout << "Order " << i << ": ";
         MallocMetadata* current = metaByOrderArr[i];
+        if (!current) {
+            std::cout << "(empty)";
+        } else {
+            while (current) {
+                std::cout << "[size: " << current->size
+                          << ", is_free: " << (current->is_free ? "true" : "false") << "] -> ";
+                current = current->next;
+            }
+            std::cout << "NULL";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "===============================" << std::endl;
+}
+
+void print_meta_by_order_allocated_array() {
+    std::cout << "=== metaByOrderAllocatedArr Contents ===" << std::endl;
+    for (int i = 0; i <= 9; ++i) {
+        std::cout << "Order " << i << ": ";
+        MallocMetadata* current = metaByOrderAllocatedArr[i];
         if (!current) {
             std::cout << "(empty)";
         } else {
@@ -230,6 +250,7 @@ void* smalloc(size_t size) {
     std::cout << "[DEBUG] : Not First Alloc" << std::endl;
     int order = getDesiredOrderBySize(size);
     if (order > 10) { //If size bigger than 128KB
+        std::cout << "[DEBUG] : Big Block" << std::endl;
         ptrToAlloc = allocateBigBlock(size);
         if(ptrToAlloc == NULL)
             return NULL;
@@ -414,18 +435,25 @@ size_t _num_allocated_blocks() {
     size_t countOverAllBlocks = 0;
     //std::cout << "[DEBUG] : not null" << std::endl;
     print_meta_by_order_array();
+    //
+    // print_meta_by_order_allocated_array();
     for (int i = 0; i <= 10; i++) {
+        std::cout << i << std::endl;
         MallocMetadata* current = metaByOrderArr[i];
         while (current != NULL) {
             countOverAllBlocks++;
             current = current->next;
         }
-        current = metaByOrderAllocatedArr[i];
+    }
+    for (int i = 0; i <= 9; i++) {
+        std::cout << i << std::endl;
+        MallocMetadata* current = metaByOrderAllocatedArr[i];
         while (current != NULL) {
             countOverAllBlocks++;
             current = current->next;
         }
     }
+    std::cout << "got here" << std::endl;
 
     MallocMetadata* current = bigBlocksListFirst;
     //std::cout << "[DEBUG] : current is " << (current == nullptr) << std::endl;
@@ -444,7 +472,10 @@ size_t _num_allocated_bytes() {
             numOfBytes += current->size;
             current = current->next;
         }
-        current = metaByOrderAllocatedArr[i];
+    }
+    for (int i = 0; i <= 9; i++) {
+        std::cout << i << std::endl;
+        MallocMetadata* current = metaByOrderAllocatedArr[i];
         while (current != NULL) {
             numOfBytes += current->size;
             current = current->next;
