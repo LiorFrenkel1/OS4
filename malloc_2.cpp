@@ -20,6 +20,7 @@ void* smalloc(size_t size) {
         if (current->is_free && current->size >= size) {
             ptrToAlloc = (void*)((char*)current + sizeof(MallocMetadata));
             current->is_free = false;
+            break;
         }
         current = current->next;
     }
@@ -63,14 +64,8 @@ void sfree(void* p) {
     MallocMetadata* metadata = (MallocMetadata*)((char*)p - sizeof(MallocMetadata)); //p's metadata
     if(metadata->is_free) //already free
         return;
-    MallocMetadata* p_next = metadata->next;
-    MallocMetadata* p_prev = metadata->prev;
 
     metadata->is_free = true; //now p space is free
-//    if (metadata->prev) //disconnect p from linked list
-//        metadata->prev->next = metadata->next;
-//    if (metadata->next)
-//        metadata->next->prev = metadata->prev;
 }
 
 void* srealloc(void* oldp, size_t size) {
@@ -86,10 +81,10 @@ void* srealloc(void* oldp, size_t size) {
     }
     void* newBlock = smalloc(size);
     if (newBlock == NULL) {
-        NULL;
+        return NULL;
     }
     memmove(newBlock, oldp, oldMeta->size);
-    sfree((void*)oldMeta);
+    sfree(oldp);
     return newBlock;
 }
 
