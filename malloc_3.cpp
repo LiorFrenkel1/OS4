@@ -363,38 +363,35 @@ MallocMetadata* mergeBuddies(MallocMetadata* metadata) {
         uintptr_t current_addr = (uintptr_t)metadata;
         uintptr_t buddy_addr = current_addr ^ block_size;
 
-        uintptr_t heap_start_addr = (uintptr_t)heap_start;
-        uintptr_t heap_end = heap_start_addr + 32 * 128 * 1024;
-
-        if (buddy_addr < heap_start_addr || buddy_addr >= heap_end) {
-            break;
-        }
 
         MallocMetadata* buddy_metadata = (MallocMetadata*)buddy_addr;
 
+        // Check if buddy is valid and free
         if(!buddy_metadata->is_free || buddy_metadata->size != curr_size)
             break;
 
+        // Remove both blocks from their current order lists
         removePtrFromOrderList(buddy_metadata, order);
         removePtrFromOrderList(metadata, order);
 
+        // Determine which block comes first in memory
         MallocMetadata* mergedBuddiesMetadata;
         if(buddy_addr < current_addr)
             mergedBuddiesMetadata = buddy_metadata;
         else
             mergedBuddiesMetadata = metadata;
 
-        mergedBuddiesMetadata->size = (curr_size + sizeof(MallocMetadata)) * 2 - sizeof(MallocMetadata);
+        // Correct size calculation: new size is exactly double the current size
+        mergedBuddiesMetadata->size = curr_size * 2 + sizeof(MallocMetadata);
         mergedBuddiesMetadata->is_free = true;
-
 
         metadata = mergedBuddiesMetadata;
     }
+
     int newOrder = getDesiredOrderBySize(metadata->size);
     addMetaToOrderList(metadata, newOrder);
     return metadata;
 }
-
 
 void sfree(void* p) {
     if(p == NULL)
@@ -406,7 +403,7 @@ void sfree(void* p) {
 
     int order = getDesiredOrderBySize(metadata->size);
 
-    if (order >= 10) {
+    if (order > 10) { // Changed from >= 10 to > 10
         size_t total_size = metadata->size + sizeof(MallocMetadata);
         removeFromBigBlockList(metadata);
         munmap((void*)metadata, total_size);
