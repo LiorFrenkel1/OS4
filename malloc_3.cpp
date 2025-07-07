@@ -244,9 +244,6 @@ void removeFromBigBlockList(MallocMetadata* ptr) {
 
 void* smalloc(size_t size) {
     //std::cout << "smalloc called with size: " << size << std::endl;
-    if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
-        return NULL;
-    }
     void* ptrToAlloc = NULL;
     if (isFirstAlloc()) { //Alloc the first 32 128KB blocks if needed
         if (alignHeapTo4MB() == NULL) {
@@ -266,6 +263,9 @@ void* smalloc(size_t size) {
             addMetaToOrderList(currentMeta, 10);
             pointerToCurrentBlock = (void*)((char*)pointerToCurrentBlock + 128*1024);
         }
+    }
+    if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
+        return NULL;
     }
 
     //Alloc the desired size

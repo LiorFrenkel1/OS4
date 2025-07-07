@@ -512,6 +512,14 @@ void test_all_sizes() {
 
 }
 
+void test_weird_values() {
+    void* ptr = smalloc(100000001);
+    assert(ptr == NULL);
+    print_meta_by_order_array();
+    print_meta_by_order_allocated_array();
+    sfree(ptr);
+}
+
 void test_full_mem() {
         std::vector<void*> allocations;
     for (int i = 0; i < 64; i++)
@@ -562,8 +570,8 @@ int main() {
         //test_statistics_consistency();
 //        test_error_handling();
         //test_all_sizes();
-        test_full_mem();
-
+        //test_full_mem();
+        test_weird_values();
 //        void * x = smalloc(32704);
 //        print_meta_by_order_array();
 //        print_meta_by_order_allocated_array();
