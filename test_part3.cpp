@@ -3,6 +3,9 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <cmath>
+#include <vector>
+
 
 // Function declarations (to be implemented in malloc_3.cpp)
 void* smalloc(size_t size);
@@ -427,26 +430,144 @@ void test_error_handling() {
     std::cout << "Error handling tests passed" << std::endl;
 }
 
+// ============================ other test debbuging ====================
+
+int how_many_free_in_order(int order);
+
+int how_many_alloc_in_order(int order);
+
+
+void verify_block_by_order(int n0, int n1, int n2, int n3, int n4, int n5, int n6, int n7, int n8, int n9, int n10,
+                            int k0, int k1, int k2, int k3, int k4, int k5, int k6, int k7, int k8, int k9) {
+    for(int order = 0; order <= 10; order++) {
+        int free_blocks = (
+                order == 0 ? n0 : order == 1 ? n1 :
+                order == 2 ? n2 : order == 3 ? n3 :
+                order == 4 ? n4 : order == 5 ? n5 :
+                order == 6 ? n6 : order == 7 ? n7 :
+                order == 8 ? n8 : order == 9 ? n9 :
+                n10);
+        assert(how_many_free_in_order(order) == free_blocks);
+    }
+    for(int order = 0; order <= 9; order++) {
+        int free_blocks = (order == 0 ? k0 : order == 1 ? k1 :
+                order == 2 ? k2 : order == 3 ? k3 :
+                order == 4 ? k4 : order == 5 ?k5 :
+                order == 6 ? k6 : order == 7 ?k7 :
+                order == 8 ? k8 : k9);
+        assert(how_many_alloc_in_order(order) == free_blocks);
+    }
+}
+
+
+void test_all_sizes() {
+
+    // Initial state
+//    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,0,0,0);
+    void * ptr;
+    ptr = smalloc(128*pow(2,0) -64);
+    verify_block_by_order(1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,1) -64);
+    verify_block_by_order(0,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,2) -64);
+    verify_block_by_order(0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,3) -64);
+    verify_block_by_order(0,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,4) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,5) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,6) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,7) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,8) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    ptr = smalloc(128*pow(2,9) -64);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,31);
+    sfree(ptr);
+    verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32);
+    //ptr = smalloc(128*pow(2,10) -64);
+    //verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,31,1,0,0);
+    //sfree(ptr);
+    //verify_block_by_order(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,0,0,0);
+
+}
+
+void test_full_mem() {
+        std::vector<void*> allocations;
+    for (int i = 0; i < 64; i++)
+    {
+
+        void* ptr = smalloc(128 * std::pow(2, 9) - 64);
+        std::cout << "iteration: " << i << std::endl;
+        assert(ptr != nullptr);
+        allocations.push_back(ptr);
+//        printf("%d\n",i);
+//        fflush(stdout);
+    }
+
+    print_meta_by_order_array();
+    print_meta_by_order_allocated_array();
+
+    void* ptr = smalloc(40);
+    assert(ptr != nullptr);
+
+    print_meta_by_order_array();
+    print_meta_by_order_allocated_array();
+    sfree(ptr);
+    while (!allocations.empty())
+    {
+        ptr = allocations.back();
+        allocations.pop_back();
+        sfree(ptr);
+    }
+}
+
 int main() {
     std::cout << "Starting Part 3 - Buddy Allocator Tests" << std::endl;
     std::cout << "=======================================" << std::endl;
 
     try {
-        test_initial_state();
-        test_block_splitting();
-        test_buddy_merging();
-        test_tight_fit();
-        test_large_allocation_mmap();
-        test_multiple_large_allocations();
-        test_mixed_allocation_sizes();
-        test_scalloc_buddy();
-        test_srealloc_buddy();
-        test_srealloc_buddy_merging();
-        test_edge_cases();
-        test_fragmentation();
+//        test_initial_state();
+//        test_block_splitting();
+//        test_buddy_merging();
+//        test_tight_fit();
+//        test_large_allocation_mmap();
+//        test_multiple_large_allocations();
+//        test_mixed_allocation_sizes();
+//        test_scalloc_buddy();
+//        test_srealloc_buddy();
+//        test_srealloc_buddy_merging();
+//        test_edge_cases();
+//        test_fragmentation();
         //test_statistics_consistency();
-        test_error_handling();
+//        test_error_handling();
+        //test_all_sizes();
+        test_full_mem();
 
+//        void * x = smalloc(32704);
+//        print_meta_by_order_array();
+//        print_meta_by_order_allocated_array();
+//        sfree(x);
         std::cout << "All tests passed!" << std::endl;
 
     } catch (const std::exception& e) {

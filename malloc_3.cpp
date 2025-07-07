@@ -22,10 +22,33 @@ MallocMetadata* bigBlocksListFirst = NULL;
 
 static void* heap_start = NULL;
 
+static bool is_first_alloc = true;
+
 
 
 // =========================== TESTING - DELETE AFTER FINISH =====================================
 
+int how_many_free_in_order(int order) {
+    int count = 0;
+    MallocMetadata* currect = metaByOrderArr[order];
+
+    while (currect != NULL) {
+        count++;
+        currect = currect->next;
+    }
+    return count;
+}
+
+int how_many_alloc_in_order(int order) {
+    int count = 0;
+    MallocMetadata* currect = metaByOrderAllocatedArr[order];
+
+    while (currect != NULL) {
+        count++;
+        currect = currect->next;
+    }
+    return count;
+}
 
 void print_meta_by_order_array() {
     std::cout << "=== metaByOrderArr Contents ===" << std::endl;
@@ -87,12 +110,11 @@ void* alignHeapTo4MB() {
 
 
 bool isFirstAlloc() {
-    for (int i = 0; i <= 10; i++) {
-        if (metaByOrderArr[i] != NULL) {
-            return false;
-        }
+    if(is_first_alloc) {
+        is_first_alloc = false;
+        return true;
     }
-    return true;
+    return false;
 }
 
 // If the function returns 11 the size is bigger than 128KB
@@ -258,7 +280,9 @@ void* smalloc(size_t size) {
         //std::cout << "[DEBUG] : Not Big Block" << std::endl;
         int blockOrder = order;
         MallocMetadata* blockForAlloc = NULL;
-        while (blockForAlloc == NULL) { //Find the smallest fitting block with the smallest address
+
+        // Search for available block, with upper limit to prevent infinite loop
+        while (blockForAlloc == NULL && blockOrder <= 10) { //Find the smallest fitting block with the smallest address
             //std::cout << "searching smallest fitting block" << std::endl;
             if (metaByOrderArr[blockOrder] == NULL) {
                 blockOrder++;
@@ -282,12 +306,24 @@ void* smalloc(size_t size) {
             }
         }
 
+        // If no block found, return NULL (no more memory available)
+        if (blockForAlloc == NULL) {
+            return NULL;
+        }
+
         removePtrFromOrderList(blockForAlloc, blockOrder);
         //std::cout << "removed block from free list" << std::endl;
+
         while (blockOrder != order) { //Split the block until it's in the right size
             //std::cout << "splitting blocks " << blockOrder << std::endl;
             blockOrder--;
             MallocMetadata* buddy = (MallocMetadata*)((char*)blockForAlloc + 128*getPowerOfTwo(blockOrder));
+
+            // Validate buddy pointer before using it
+            if (buddy == NULL) {
+                return NULL;
+            }
+
             buddy->size = 128*getPowerOfTwo(blockOrder) - sizeof(MallocMetadata);
             buddy->is_free = true;
             //std::cout << "adding to order list " << blockOrder << std::endl;
