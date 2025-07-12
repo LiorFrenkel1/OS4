@@ -24,75 +24,6 @@ static void* heap_start = NULL;
 
 static bool is_first_alloc = true;
 
-
-
-// =========================== TESTING - DELETE AFTER FINISH =====================================
-
-int how_many_free_in_order(int order) {
-    int count = 0;
-    MallocMetadata* currect = metaByOrderArr[order];
-
-    while (currect != NULL) {
-        count++;
-        currect = currect->next;
-    }
-    return count;
-}
-
-int how_many_alloc_in_order(int order) {
-    int count = 0;
-    MallocMetadata* currect = metaByOrderAllocatedArr[order];
-
-    while (currect != NULL) {
-        count++;
-        currect = currect->next;
-    }
-    return count;
-}
-
-void print_meta_by_order_array() {
-    std::cout << "=== metaByOrderArr Contents ===" << std::endl;
-    for (int i = 0; i <= 10; ++i) {
-        std::cout << "Order " << i << ": ";
-        MallocMetadata* current = metaByOrderArr[i];
-        if (!current) {
-            std::cout << "(empty)";
-        } else {
-            while (current) {
-                std::cout << "[size: " << current->size
-                          << ", is_free: " << (current->is_free ? "true" : "false") << "] -> ";
-                current = current->next;
-            }
-            std::cout << "NULL";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "===============================" << std::endl;
-}
-
-void print_meta_by_order_allocated_array() {
-    std::cout << "=== metaByOrderAllocatedArr Contents ===" << std::endl;
-    for (int i = 0; i <= 9; ++i) {
-        std::cout << "Order " << i << ": ";
-        MallocMetadata* current = metaByOrderAllocatedArr[i];
-        if (!current) {
-            std::cout << "(empty)";
-        } else {
-            while (current) {
-                std::cout << "[size: " << current->size
-                          << ", is_free: " << (current->is_free ? "true" : "false") << "] -> ";
-                current = current->next;
-            }
-            std::cout << "NULL";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "===============================" << std::endl;
-}
-
-// =========================== TESTING - DELETE AFTER FINISH =====================================
-
-
 void* alignHeapTo4MB() {
     void* curr_brk = sbrk(0);
     size_t misalignment = (size_t)curr_brk % (128 * 1024 * 32);
@@ -264,7 +195,7 @@ void* smalloc(size_t size) {
             pointerToCurrentBlock = (void*)((char*)pointerToCurrentBlock + 128*1024);
         }
     }
-    if (size == 0 || size > 100000000) { //TODO CHECK IF STILL NEEDED
+    if (size == 0 || size > 100000000) {
         return NULL;
     }
 
@@ -521,7 +452,7 @@ size_t _num_allocated_bytes() {
     return numOfBytes;
 }
 
-size_t _num_meta_data_bytes() { //TODO CHECK IF NEED TO CHANGE
+size_t _num_meta_data_bytes() {
     size_t numOfBlocksOnHeap = _num_allocated_blocks();
     return numOfBlocksOnHeap * sizeof(MallocMetadata);
 }
